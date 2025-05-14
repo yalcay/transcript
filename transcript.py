@@ -56,17 +56,24 @@ class TranscriptUI(QMainWindow):
         system_layout = QVBoxLayout()
         system_group.setLayout(system_layout)
         
-        # Kredi Sistemi
-        credit_group = QGroupBox("Kredi Sistemi")
-        credit_layout = QHBoxLayout()
+        # Kolon Seçenekleri
+        column_group = QGroupBox("Kolon Seçenekleri")
+        column_layout = QHBoxLayout()  # Yatay düzende
+        
         self.credit_checkbox = QCheckBox("Kredi sistemini kullan")
-        credit_layout.addWidget(self.credit_checkbox)
-        credit_group.setLayout(credit_layout)
-        system_layout.addWidget(credit_group)
+        self.course_code_checkbox = QCheckBox("Ders Kodu kullan")
+        self.ects_checkbox = QCheckBox("AKTS kullan")
+        
+        column_layout.addWidget(self.credit_checkbox)
+        column_layout.addWidget(self.course_code_checkbox)
+        column_layout.addWidget(self.ects_checkbox)
+        
+        column_group.setLayout(column_layout)
+        system_layout.addWidget(column_group)
         
         # Not Sistemi
         grade_group = QGroupBox("Not Sistemi")
-        grade_layout = QVBoxLayout()
+        grade_layout = QHBoxLayout()  # Yatay düzende
         
         self.grade_systems = {
             'letter': QCheckBox("Harf Notu (AA, BA, BB, ...)"),
@@ -115,10 +122,18 @@ class TranscriptUI(QMainWindow):
         self.update_table_headers()
         
     def update_table_headers(self):
-        headers = ["Yarıyıl", "Ders Kodu", "Ders Adı"]
+        headers = ["Yarıyıl"]
+        
+        if self.course_code_checkbox.isChecked():
+            headers.append("Ders Kodu")
+            
+        headers.append("Ders Adı")
         
         if self.credit_checkbox.isChecked():
             headers.append("Kredi")
+            
+        if self.ects_checkbox.isChecked():
+            headers.append("AKTS")
             
         for system, checkbox in self.grade_systems.items():
             if checkbox.isChecked():
@@ -150,17 +165,31 @@ class TranscriptUI(QMainWindow):
             self, "Excel Şablonu Kaydet", "", "Excel Files (*.xlsx)")
             
         if file_name:
-            headers = ["Yarıyıl", "Ders Kodu", "Ders Adı"]
+            headers = ["Yarıyıl"]
             example_data = [
-                ["1", "MAT101", "Matematik I"],
-                ["1", "FİZ101", "Fizik I"],
-                ["2", "MAT102", "Matematik II"]
+                ["1"],
+                ["1"],
+                ["2"]
             ]
             
+            if self.course_code_checkbox.isChecked():
+                headers.append("Ders Kodu")
+                for row in example_data:
+                    row.append("MAT101" if "1" in row else "FİZ101" if len(row) == 1 else "MAT102")
+                    
+            headers.append("Ders Adı")
+            for row in example_data:
+                row.append("Matematik I" if "MAT101" in row else "Fizik I" if "FİZ101" in row else "Matematik II")
+                
             if self.credit_checkbox.isChecked():
                 headers.append("Kredi")
                 for row in example_data:
                     row.append("3")
+                    
+            if self.ects_checkbox.isChecked():
+                headers.append("AKTS")
+                for row in example_data:
+                    row.append("5")
                     
             grade_system = self.get_selected_grade_system()
             if grade_system:
@@ -266,28 +295,56 @@ class TranscriptUI(QMainWindow):
         transcript.add_student_info(**student_info)
         
         # Sistem bilgilerini ekle
-        transcript.set_system_info(grade_system, self.credit_checkbox.isChecked())
+        transcript.set_system_info(
+            grade_system, 
+            self.credit_checkbox.isChecked(),
+            self.course_code_checkbox.isChecked(),
+            self.ects_checkbox.isChecked()
+        )
         
         # Dersleri ekle
         try:
+            current_semester = None
+            semester_courses = []
+            
             for row in range(self.course_table.rowCount()):
                 semester = self.course_table.item(row, 0).text()
                 semester_num = int(semester.split('.')[0] if '.' in semester else semester)
                 
-                course_data = {
-                    'semester': semester_num,
-                    'course_code': self.course_table.item(row, 1).text(),
-                    'course_name': self.course_table.item(row, 2).text()
-                }
+                if current_semester is None:
+                    current_semester = semester_num
                 
-                col_index = 3
+                if semester_num != current_semester:
+                    # Önceki yarıyıl derslerini ekle
+                    transcript.add_semester_courses(current_semester, semester_courses)
+                    semester_courses = []
+                    current_semester = semester_num
+                
+                col_index = 1
+                course_data = {}
+                
+                if self.course_code_checkbox.isChecked():
+                    course_data['course_code'] = self.course_table.item(row, col_index).text()
+                    col_index += 1
+                    
+                course_data['course_name'] = self.course_table.item(row, col_index).text()
+                col_index += 1
+                
                 if self.credit_checkbox.isChecked():
                     course_data['credits'] = float(self.course_table.item(row, col_index).text())
                     col_index += 1
                     
-                course_data['grade'] = self.course_table.item(row, col_index).text()
+                if self.ects_checkbox.isChecked():
+                    course_data['ects'] = float(self.course_table.item(row, col_index).text())
+                    col_index += 1
                     
-                transcript.add_course(**course_data)
+                course_data['grade'] = self.course_table.item(row, col_index).text()
+                
+                semester_courses.append(course_data)
+            
+            # Son yarıyıl derslerini ekle
+            if semester_courses:
+                transcript.add_semester_courses(current_semester, semester_courses)
                 
             file_name, _ = QFileDialog.getSaveFileName(
                 self, "PDF Kaydet", "", "PDF Files (*.pdf)")
