@@ -1,31 +1,32 @@
-from fpdf import FPDF
+from fpdf import *
 from datetime import datetime
+import os
 
 class TranscriptGenerator:
     def __init__(self):
+        self.pdf = FPDF()
         self.student_info = {}
         self.courses = []
         self.grade_system = None
-        self.use_credits = False
+        self.use_credits = None
 
     def add_student_info(self, **kwargs):
         self.student_info.update(kwargs)
+
+    def add_course(self, course_code=None, semester=None, **course_data):
+        course = course_data
+        if course_code:
+            course['course_code'] = course_code
+        if semester:
+            course['semester'] = semester
+        self.courses.append(course)
         
+    def add_courses(self, courses):
+        self.courses.extend(courses)
+
     def set_system_info(self, grade_system, use_credits):
         self.grade_system = grade_system
         self.use_credits = use_credits
-
-    def add_course(self, semester, course_code, course_name, credits=None, grade=None):
-        course = {
-            'semester': semester,
-            'code': course_code,
-            'name': course_name
-        }
-        if credits is not None:
-            course['credits'] = credits
-        if grade is not None:
-            course['grade'] = grade
-        self.courses.append(course)
 
     def calculate_gpa(self):
         if not self.use_credits or not self.courses:
@@ -66,32 +67,30 @@ class TranscriptGenerator:
             
             def footer(self):
                 self.set_y(-15)
-                self.set_font('times', 'I', 8)
+                self.set_font('Arial', 'I', 8)
                 page = f'Sayfa {self.page_no()}/{{nb}}'
                 self.cell(0, 10, page, 0, 0, 'C')
 
         pdf = PDF()
         pdf.add_page()
-        pdf.add_font('DejaVu', '', 'DejaVuSansCondensed.ttf', uni=True)
-        pdf.add_font('DejaVu', 'B', 'DejaVuSansCondensed-Bold.ttf', uni=True)
+        pdf.set_font('Arial', 'B', 16)
         
         # Başlık
-        pdf.set_font('DejaVu', 'B', 16)
-        pdf.cell(0, 10, 'TRANSKRİPT BELGESİ', 0, 1, 'C')
+        pdf.cell(0, 10, 'TRANSKRIPT BELGESI', 0, 1, 'C')
         pdf.ln(10)
 
         # Öğrenci Bilgileri
-        pdf.set_font('DejaVu', 'B', 12)
-        pdf.cell(0, 10, 'Öğrenci Bilgileri', 0, 1)
-        pdf.set_font('DejaVu', '', 12)
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, 'Ogrenci Bilgileri', 0, 1)
+        pdf.set_font('Arial', '', 12)
         
         info_items = [
-            ('Adı Soyadı', 'name'),
-            ('Öğrenci No', 'student_id'),
-            ('Fakülte', 'faculty'),
-            ('Bölüm', 'department'),
+            ('Adi Soyadi', 'name'),
+            ('Ogrenci No', 'student_id'),
+            ('Fakulte', 'faculty'),
+            ('Bolum', 'department'),
             ('Program', 'program'),
-            ('Öğrenim Başlangıç Yılı', 'start_year')
+            ('Ogrenim Baslangic Yili', 'start_year')
         ]
 
         for label, key in info_items:
@@ -102,11 +101,11 @@ class TranscriptGenerator:
         pdf.ln(10)
 
         # Dersler
-        pdf.set_font('DejaVu', 'B', 12)
+        pdf.set_font('Arial', 'B', 12)
         pdf.cell(0, 10, 'Dersler', 0, 1)
         
         # Tablo başlıkları
-        headers = ['Yarıyıl', 'Ders Kodu', 'Ders Adı']
+        headers = ['Yariyil', 'Ders Kodu', 'Ders Adi']
         if self.use_credits:
             headers.append('Kredi')
         headers.append('Not')
@@ -119,13 +118,13 @@ class TranscriptGenerator:
             col_widths.append(20)
 
         # Tablo başlıkları
-        pdf.set_font('DejaVu', 'B', 10)
+        pdf.set_font('Arial', 'B', 10)
         for i, header in enumerate(headers):
             pdf.cell(col_widths[i], 10, header, 1)
         pdf.ln()
 
         # Tablo içeriği
-        pdf.set_font('DejaVu', '', 10)
+        pdf.set_font('Arial', '', 10)
         current_semester = None
         
         # Dersleri yarıyıla göre sırala
@@ -137,8 +136,8 @@ class TranscriptGenerator:
                 pdf.ln(5)
                 
             pdf.cell(col_widths[0], 8, str(course['semester']), 1)
-            pdf.cell(col_widths[1], 8, str(course['code']), 1)
-            pdf.cell(col_widths[2], 8, str(course['name']), 1)
+            pdf.cell(col_widths[1], 8, str(course.get('code', '')), 1)
+            pdf.cell(col_widths[2], 8, str(course.get('name', '')), 1)
             
             if self.use_credits:
                 pdf.cell(col_widths[3], 8, str(course.get('credits', '')), 1)
@@ -150,12 +149,12 @@ class TranscriptGenerator:
             pdf.ln(10)
             gpa = self.calculate_gpa()
             if gpa is not None:
-                pdf.set_font('DejaVu', 'B', 12)
-                pdf.cell(0, 10, f'Genel Not Ortalaması: {gpa:.2f}', 0, 1)
+                pdf.set_font('Arial', 'B', 12)
+                pdf.cell(0, 10, f'Genel Not Ortalamasi: {gpa:.2f}', 0, 1)
 
         # Tarih ve İmza
         pdf.ln(20)
         current_date = datetime.now().strftime('%d/%m/%Y')
-        pdf.cell(0, 10, f'Düzenleme Tarihi: {current_date}', 0, 1)
+        pdf.cell(0, 10, f'Duzenleme Tarihi: {current_date}', 0, 1)
         
         pdf.output(filename)
