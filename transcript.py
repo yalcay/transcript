@@ -36,8 +36,10 @@ class TranscriptUI(QMainWindow):
             ('student_id', 'Öğrenci Numarası:'),
             ('faculty', 'Fakülte:'),
             ('department', 'Bölüm:'),
-            ('program', 'Program:'),
-            ('start_year', 'Öğrenim Başlangıç Yılı:')
+            ('graduation_date', 'Mezuniyet Tarihi:'),  # Program yerine Mezuniyet Tarihi
+            ('start_year', 'Öğrenim Başlangıç Yılı:'),
+            ('dean_name', 'Dekan Adı:'),  # Yeni eklenen
+            ('dean_title', 'Dekan Ünvanı:')  # Yeni eklenen
         ]
         
         for field_name, label_text in fields:
@@ -273,11 +275,27 @@ class TranscriptUI(QMainWindow):
             QMessageBox.warning(self, "Hata", "Lütfen önce ders verilerini yükleyin!")
             return
             
-        # Öğrenci bilgilerinin kontrolü
+        # Öğrenci bilgilerini hazırla
+        student_info = {}
         for field, widget in self.student_fields.items():
-            if not widget.text().strip():
-                QMessageBox.warning(self, "Hata", f"Lütfen {field} alanını doldurun!")
-                return
+            value = widget.text().strip()
+            # Eğer alan boşsa varsayılan değeri kullan
+            if not value:
+                if field == 'name':
+                    value = 'Örnek Öğrenci'
+                elif field == 'student_id':
+                    value = '123456789'
+                elif field == 'faculty':
+                    value = 'Fen-Edebiyat Fakültesi'
+                elif field == 'department':
+                    value = 'Kimya'
+                elif field == 'start_year':
+                    value = '2025'
+                elif field == 'dean_name':
+                    value = 'Prof. Dr. Samet Yücel KADIOĞLU'
+                elif field == 'dean_title':
+                    value = 'Fen-Edebiyat Fakültesi Dekanı'
+            student_info[field] = value
         
         # Not sistemi kontrolü
         grade_system = self.get_selected_grade_system()
@@ -288,10 +306,6 @@ class TranscriptUI(QMainWindow):
         transcript = TranscriptGenerator()
         
         # Öğrenci bilgilerini ekle
-        student_info = {
-            field: widget.text()
-            for field, widget in self.student_fields.items()
-        }
         transcript.add_student_info(**student_info)
         
         # Sistem bilgilerini ekle

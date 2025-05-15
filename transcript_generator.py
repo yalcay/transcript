@@ -18,6 +18,23 @@ class TranscriptGenerator:
         self.pdf.add_font("Roboto", "B", os.path.join(os.path.dirname(__file__), "Roboto-Bold.ttf"))
 
     def add_student_info(self, **kwargs):
+        # Varsayılan değerler
+        default_values = {
+            'name': 'Örnek Öğrenci',
+            'student_id': '123456789',
+            'faculty': 'Fen-Edebiyat Fakültesi',
+            'department': 'Kimya',
+            'start_year': '2025',
+            'graduation_date': '',
+            'dean_name': kwargs.get('dean_name', ''),
+            'dean_title': kwargs.get('dean_title', '')
+        }
+        
+        # Boş değerler için varsayılan değerleri kullan
+        for key, default_value in default_values.items():
+            if key in kwargs and not kwargs[key].strip():
+                kwargs[key] = default_value
+                
         self.student_info.update(kwargs)
 
     def add_course(self, course_code=None, semester=None, **course_data):
@@ -96,11 +113,11 @@ class TranscriptGenerator:
             
             # Fakülte adı
             pdf.set_font('Roboto', 'B', 8)
-            pdf.cell(0, 5, 'FEN EDEBİYAT FAKÜLTESİ', 0, 1, 'C')
+            pdf.cell(0, 5, self.student_info.get('faculty', 'FEN EDEBİYAT FAKÜLTESİ'), 0, 1, 'C')
             
             # Belge adı
             pdf.set_font('Roboto', 'B', 8)
-            pdf.cell(0, 5, 'TRANSKRİPT', 0, 1, 'C')
+            pdf.cell(0, 5, 'TRANSKRİPT BELGESİ', 0, 1, 'C')
             
             # Sadece tarih bilgisi
             pdf.set_font('Roboto', '', 6)
@@ -120,7 +137,7 @@ class TranscriptGenerator:
                 ('Öğrenci No', self.student_info.get('student_id', '')),
                 ('Fakülte', self.student_info.get('faculty', '')),
                 ('Bölüm', self.student_info.get('department', '')),
-                ('Program', self.student_info.get('program', '')),
+                ('Mezuniyet Tarihi', self.student_info.get('graduation_date', '')),  # Program yerine Mezuniyet Tarihi
                 ('Başlangıç Yılı', self.student_info.get('start_year', ''))
             ]
             
@@ -241,9 +258,11 @@ class TranscriptGenerator:
                 pdf.set_y(279)
                 pdf.set_font('Roboto', '', 8)
                 pdf.set_text_color(0, 0, 0)
-                pdf.cell(0, 4, 'Fen Edebiyat Fakültesi Dekanı', 0, 1, 'R')
+                dean_title = self.student_info.get('dean_title', 'Fen Edebiyat Fakültesi Dekanı')
+                pdf.cell(0, 4, dean_title, 0, 1, 'R')
                 pdf.set_font('Roboto', 'B', 8)
-                pdf.cell(0, 4, 'Prof. Dr. Samet Yücel KADIOĞLU', 0, 1, 'R')
+                dean_name = self.student_info.get('dean_name', '')
+                pdf.cell(0, 4, dean_name, 0, 1, 'R')
 
             pdf.output(filename)
         except Exception as e:
